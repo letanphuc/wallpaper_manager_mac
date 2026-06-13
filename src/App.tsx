@@ -226,6 +226,10 @@ function LocalWallpapers({
   const [wallpapers, setWallpapers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    loadLocal();
+  }, []);
+
   const loadLocal = async () => {
     console.log(`[LocalWallpapers] listing local wallpapers`);
     setLoading(true);

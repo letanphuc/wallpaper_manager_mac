@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Wallpaper, AppSettings } from "../types";
 
+function sanitizeTitle(title: string): string {
+  return title
+    .split("")
+    .map((c) => (/[a-zA-Z0-9\-_ ]/.test(c) ? c : "_"))
+    .join("")
+    .trim();
+}
+
 const COUNTRIES: Record<string, string> = {
   all: "All Regions",
   us: "United States",
@@ -20,18 +28,28 @@ const COUNTRIES: Record<string, string> = {
 
 interface Props {
   onPreview: (w: Wallpaper) => void;
-  onSetWallpaper: (url: string, title: string) => void;
-  onDownloadAll: (wallpapers: Wallpaper[]) => void;
+  onSetWallpaper: (url: string, title: string) => Promise<void>;
+  onDownloadAll: (wallpapers: Wallpaper[]) => Promise<void>;
 }
 
 function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState("bing");
-  const [country, setCountry] = useState("us");
+  const [country, setCountry] = useState("all");
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(20);
   const [initialized, setInitialized] = useState(false);
+  const [downloadedTitles, setDownloadedTitles] = useState<Set<string>>(new Set());
+
+  const loadDownloadedTitles = useCallback(async () => {
+    try {
+      const titles = await invoke<string[]>("get_downloaded_titles");
+      setDownloadedTitles(new Set(titles));
+    } catch (e) {
+      console.error("[Gallery] failed to load downloaded titles:", e);
+    }
+  }, []);
 
   const fetchWallpapers = useCallback(async () => {
     console.log(`[Gallery] fetching wallpapers: source=${source}, country=${country}, n=${fetchCount}`);
@@ -48,6 +66,7 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
         console.log(`[Gallery] first wallpaper (raw):`, JSON.parse(JSON.stringify(result[0])));
       }
       setWallpapers(result);
+      loadDownloadedTitles();
     } catch (e) {
       console.error(`[Gallery] fetch failed:`, e);
       setError(String(e));
@@ -65,7 +84,10 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
         if (s.fetch_count) setFetchCount(s.fetch_count);
       })
       .catch((e) => console.error(`[Gallery] failed to load settings:`, e))
-      .finally(() => setInitialized(true));
+      .finally(() => {
+        setInitialized(true);
+        loadDownloadedTitles();
+      });
   }, []);
 
   useEffect(() => {
@@ -118,9 +140,10 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
           </button>
           <button
             className="btn"
-            onClick={() => {
+            onClick={async () => {
               console.log(`[Gallery] download all & set random: ${wallpapers.length} wallpapers`);
-              onDownloadAll(wallpapers);
+              await onDownloadAll(wallpapers);
+              loadDownloadedTitles();
             }}
             disabled={loading || wallpapers.length === 0}
           >
@@ -140,29 +163,40 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
       <div className="wallpaper-grid">
         {wallpapers.map((w, i) => (
           <div key={i} className="wallpaper-card">
-            <img
-              src={w.thumb_url || w.image_url}
-              alt={w.title || "Wallpaper"}
-              loading="lazy"
-              onClick={() => {
-                console.log(`[Gallery] wallpaper clicked: "${w.title}"`);
-                onPreview(w);
-              }}
-            />
+            <div className="wallpaper-card-img-wrapper">
+              <img
+                src={w.thumb_url || w.image_url}
+                alt={w.title || "Wallpaper"}
+                loading="lazy"
+                onClick={() => {
+                  console.log(`[Gallery] wallpaper clicked: "${w.title}"`);
+                  onPreview(w);
+                }}
+              />
+              {downloadedTitles.has(sanitizeTitle(w.title || "wallpaper")) && (
+                <span className="wallpaper-downloaded-badge" title="Already downloaded">✓</span>
+              )}
+            </div>
             <div className="wallpaper-card-info">
               <span className="wallpaper-title">{w.title || "Untitled"}</span>
             </div>
             <div className="wallpaper-card-actions">
               <button
                 className="btn btn-sm btn-primary"
-                onClick={() => {
-                  const url = w.uhd_url || w.image_url || w.full_url || "";
+                onClick={async () => {
                   const title = w.title || "wallpaper";
-                  console.log(`[Gallery] download & set: title="${title}", url=${url.slice(0, 60)}...`);
-                  onSetWallpaper(url, title);
+                  if (downloadedTitles.has(sanitizeTitle(title))) {
+                    console.log(`[Gallery] setting local wallpaper: title="${title}"`);
+                    await invoke("set_wallpaper_by_title", { title });
+                  } else {
+                    const url = w.uhd_url || w.image_url || w.full_url || "";
+                    console.log(`[Gallery] download & set: title="${title}", url=${url.slice(0, 60)}...`);
+                    await onSetWallpaper(url, title);
+                    loadDownloadedTitles();
+                  }
                 }}
               >
-                Download & Set
+                {downloadedTitles.has(sanitizeTitle(w.title || "wallpaper")) ? "Set" : "Download & Set"}
               </button>
             </div>
           </div>

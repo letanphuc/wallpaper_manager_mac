@@ -36,7 +36,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             source: "bing".to_string(),
-            country: "us".to_string(),
+            country: "all".to_string(),
             interval_minutes: 60,
             auto_refresh: false,
             fetch_count: 20,
@@ -169,6 +169,10 @@ async fn set_wallpaper(path: String) -> Result<(), String> {
         return Err(format!("File not found: {}", path));
     }
 
+    set_wallpaper_inner(&path)
+}
+
+fn set_wallpaper_inner(path: &str) -> Result<(), String> {
     let escaped_path = path.replace("\"", "\\\"");
     let script = format!(
         "tell application \"System Events\" to set picture of every desktop to \"{}\"",
@@ -194,6 +198,24 @@ async fn set_wallpaper(path: String) -> Result<(), String> {
 
     log::info!("wallpaper set successfully");
     Ok(())
+}
+
+#[tauri::command]
+fn set_wallpaper_by_title(title: String) -> Result<(), String> {
+    log::info!("setting wallpaper by title: \"{}\"", title);
+
+    let filename = sanitize_filename(&title) + ".jpg";
+    let path = wallpapers_dir().join(&filename);
+    let path_str = path.to_string_lossy().to_string();
+
+    log::debug!("resolved path: {:?}", path);
+
+    if !path.exists() {
+        log::error!("wallpaper file not found: {:?}", path);
+        return Err(format!("Wallpaper not found: {}", filename));
+    }
+
+    set_wallpaper_inner(&path_str)
 }
 
 #[tauri::command]
@@ -244,6 +266,28 @@ fn get_local_wallpapers() -> Result<Vec<String>, String> {
     }
 
     Ok(files)
+}
+
+#[tauri::command]
+fn get_downloaded_titles() -> Result<Vec<String>, String> {
+    let dir = wallpapers_dir();
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut titles = Vec::new();
+    let entries = fs::read_dir(&dir).map_err(|e| format!("Read dir error: {}", e))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Entry error: {}", e))?;
+        let path = entry.path();
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if ext == "jpg" || ext == "png" {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                titles.push(stem.to_string());
+            }
+        }
+    }
+    log::info!("get_downloaded_titles: {} files", titles.len());
+    Ok(titles)
 }
 
 #[tauri::command]
@@ -302,9 +346,11 @@ pub fn run() {
             fetch_wallpapers,
             download_wallpaper,
             set_wallpaper,
+            set_wallpaper_by_title,
             get_settings,
             save_settings,
             get_local_wallpapers,
+            get_downloaded_titles,
             read_image_base64,
         ])
         .run(tauri::generate_context!())
