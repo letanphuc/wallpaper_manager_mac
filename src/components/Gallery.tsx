@@ -114,12 +114,12 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
             {loading ? "Loading..." : "Refresh"}
           </button>
           <button
-            className="btn btn-sm"
+            className="btn"
             onClick={() => {
               console.log(`[Gallery] download all & set random: ${wallpapers.length} wallpapers`);
               onDownloadAll(wallpapers);
             }}
-            disabled={wallpapers.length === 0}
+            disabled={loading || wallpapers.length === 0}
           >
             Download All & Set Random
           </button>
