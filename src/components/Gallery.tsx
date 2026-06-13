@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Wallpaper, AppSettings } from "../types";
 
 const COUNTRIES: Record<string, string> = {
+  all: "All Regions",
   us: "United States",
   jp: "Japan",
   cn: "China",
@@ -29,17 +30,18 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
   const [source, setSource] = useState("bing");
   const [country, setCountry] = useState("us");
   const [error, setError] = useState<string | null>(null);
+  const [fetchCount, setFetchCount] = useState(20);
   const [initialized, setInitialized] = useState(false);
 
   const fetchWallpapers = useCallback(async () => {
-    console.log(`[Gallery] fetching wallpapers: source=${source}, country=${country}, n=20`);
+    console.log(`[Gallery] fetching wallpapers: source=${source}, country=${country}, n=${fetchCount}`);
     setLoading(true);
     setError(null);
     try {
       const result = await invoke<Wallpaper[]>("fetch_wallpapers", {
         source,
         country,
-        n: 20,
+        n: fetchCount,
       });
       console.log(`[Gallery] received ${result.length} wallpapers`);
       if (result.length > 0) {
@@ -51,7 +53,7 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
       setError(String(e));
     }
     setLoading(false);
-  }, [source, country]);
+  }, [source, country, fetchCount]);
 
   useEffect(() => {
     console.log(`[Gallery] loading settings`);
@@ -60,6 +62,7 @@ function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
         console.log(`[Gallery] loaded settings:`, s);
         if (s.source) setSource(s.source);
         if (s.country) setCountry(s.country);
+        if (s.fetch_count) setFetchCount(s.fetch_count);
       })
       .catch((e) => console.error(`[Gallery] failed to load settings:`, e))
       .finally(() => setInitialized(true));

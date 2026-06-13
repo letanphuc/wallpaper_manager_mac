@@ -29,6 +29,7 @@ pub struct AppSettings {
     pub country: String,
     pub interval_minutes: u64,
     pub auto_refresh: bool,
+    pub fetch_count: i32,
 }
 
 impl Default for AppSettings {
@@ -38,6 +39,7 @@ impl Default for AppSettings {
             country: "us".to_string(),
             interval_minutes: 60,
             auto_refresh: false,
+            fetch_count: 20,
         }
     }
 }
@@ -53,43 +55,60 @@ fn wallpapers_dir() -> PathBuf {
     dir
 }
 
+const ALL_COUNTRIES: [&str; 12] = [
+    "us", "jp", "cn", "de", "fr", "gb", "au", "br", "ca", "in", "it", "es",
+];
+
 #[tauri::command]
 async fn fetch_wallpapers(source: String, country: String, n: i32) -> Result<Vec<Wallpaper>, String> {
-    let url = if source == "spotlight" {
-        format!("https://peapix.com/spotlight/feed?n={}", n)
+    let urls: Vec<String> = if source == "spotlight" {
+        vec![format!("https://peapix.com/spotlight/feed?n={}", n)]
+    } else if country == "all" {
+        ALL_COUNTRIES.iter().map(|c| {
+            format!("https://peapix.com/bing/feed?country={}&n={}", c, n)
+        }).collect()
     } else {
-        format!("https://peapix.com/bing/feed?country={}&n={}", country, n)
+        vec![format!("https://peapix.com/bing/feed?country={}&n={}", country, n)]
     };
 
-    log::info!("fetching wallpapers: source={}, country={}, n={}, url={}", source, country, n, url);
+    log::info!("fetching wallpapers: source={}, country={}, n={}, {} url(s)", source, country, n, urls.len());
+    for u in &urls {
+        log::debug!("  url: {}", u);
+    }
 
     let client = reqwest::Client::new();
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "wallpaper-mac/1.0")
-        .send()
-        .await
-        .map_err(|e| {
-            log::error!("HTTP request failed: {}", e);
-            format!("HTTP error: {}", e)
-        })?;
+    let mut handles = Vec::new();
+    for url in urls {
+        let c = client.clone();
+        handles.push(tokio::spawn(async move {
+            c.get(&url)
+                .header("User-Agent", "wallpaper-mac/1.0")
+                .send()
+                .await
+                .ok()
+        }));
+    }
 
-    log::debug!("HTTP response status: {}", resp.status());
+    let mut all_wallpapers: Vec<Wallpaper> = Vec::new();
+    for handle in handles {
+        if let Ok(Some(resp)) = handle.await {
+            if let Ok(wallpapers) = resp.json::<Vec<Wallpaper>>().await {
+                all_wallpapers.extend(wallpapers);
+            }
+        }
+    }
 
-    let wallpapers: Vec<Wallpaper> = resp
-        .json()
-        .await
-        .map_err(|e| {
-            log::error!("JSON parse failed: {}", e);
-            format!("Parse error: {}", e)
-        })?;
+    let mut seen = std::collections::HashSet::new();
+    all_wallpapers.retain(|w| {
+        w.full_url.as_deref().map_or(false, |url| seen.insert(url.to_string()))
+    });
 
-    let wallpapers: Vec<Wallpaper> = wallpapers.into_iter().map(|mut w| {
+    let wallpapers: Vec<Wallpaper> = all_wallpapers.into_iter().map(|mut w| {
         w.uhd_url = w.full_url.as_ref().map(|u| u.replace("_1920.jpg", "_3840.jpg"));
         w
     }).collect();
 
-    log::info!("fetched {} wallpapers", wallpapers.len());
+    log::info!("fetched {} wallpapers (unique)", wallpapers.len());
     Ok(wallpapers)
 }
 

@@ -8,6 +8,7 @@ function Settings() {
     country: "us",
     interval_minutes: 60,
     auto_refresh: false,
+    fetch_count: 20,
   });
   const [saved, setSaved] = useState(false);
 
@@ -69,6 +70,7 @@ function Settings() {
               }}
               className="select"
             >
+              <option value="all">All Regions</option>
               <option value="us">United States</option>
               <option value="jp">Japan</option>
               <option value="cn">China</option>
@@ -110,6 +112,24 @@ function Settings() {
               const val = parseInt(e.target.value) || 60;
               console.log(`[Settings] interval changed: ${val}`);
               setSettings({ ...settings, interval_minutes: val });
+            }}
+            className="input"
+          />
+        </label>
+      </div>
+
+      <div className="settings-section">
+        <h3>Fetch Options</h3>
+        <label className="setting-row">
+          <span>Number of wallpapers</span>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={settings.fetch_count}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 20;
+              setSettings({ ...settings, fetch_count: val });
             }}
             className="input"
           />

@@ -24,6 +24,10 @@ Port 1420 must be free. Kill stale processes with `lsof -ti:1420 | xargs kill`.
 
 **4K URL derivation** — `uhd_url` is derived in Rust's `fetch_wallpapers` by replacing `_1920.jpg` → `_3840.jpg` in `full_url`. Only populated after a fresh fetch (not in cached frontend state).
 
+**Multi-country fetch** — `country="all"` in `fetch_wallpapers` fetches from all 12 regions in parallel, deduplicates by `full_url` in Rust, returns unique results.
+
+**Fetch count** — Configurable via Settings (`fetch_count`), stored in-memory with `AppSettings`, passed as `n` to Peapix API.
+
 **Download flow** prefers `uhd_url` → `image_url` → `full_url` (Gallery.tsx:148, App.tsx:130).
 
 **Wallpapers stored at** `~/Pictures/Wallpapers/`.
@@ -38,11 +42,13 @@ Port 1420 must be free. Kill stale processes with `lsof -ti:1420 | xargs kill`.
 
 - `Gallery.tsx` — Fetches wallpapers from Peapix, grid display, country/source selectors
 - `Preview.tsx` — Modal overlay, shows full image, offers "Download & Set" or "Set as Wallpaper"
-- `Settings.tsx` — Source (bing/spotlight), country, auto-refresh interval
+- `Settings.tsx` — Source (bing/spotlight), country, auto-refresh interval, fetch count
 
 ## Settings
 
 Only stored in-memory (`Mutex<AppSettings>`). Not persisted between app restarts.
+
+Fields: `source`, `country`, `interval_minutes`, `auto_refresh`, `fetch_count`
 
 ## Constraints
 

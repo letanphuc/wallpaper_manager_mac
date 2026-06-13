@@ -14,4 +14,5 @@ export interface AppSettings {
   country: string;
   interval_minutes: number;
   auto_refresh: boolean;
+  fetch_count: number;
 }
