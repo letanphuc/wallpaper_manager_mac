@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Wallpaper } from "../types";
 
 interface Props {
@@ -17,7 +18,9 @@ function Preview({ wallpaper, path, onClose, onSetWallpaper, onSetLocalWallpaper
 
   const imageUrl = wallpaper
     ? wallpaper.full_url || wallpaper.image_url || ""
-    : path || "";
+    : path
+      ? convertFileSrc(path)
+      : "";
 
   console.log(`[Preview] computed imageUrl: "${imageUrl.slice(0, 80)}" (len=${imageUrl.length})`);
 

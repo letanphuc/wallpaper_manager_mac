@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import Gallery from "./components/Gallery";
 import Preview from "./components/Preview";
 import Settings from "./components/Settings";
@@ -194,26 +194,11 @@ function Toast({ toast, onDismiss }: {
 }
 
 function LocalWallpaperThumb({ path, onClick }: { path: string; onClick: () => void }) {
-  const [src, setSrc] = useState<string>("");
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    console.log(`[LocalThumb] loading image: ${path}`);
-    setError(false);
-    invoke<string>("read_image_base64", { path })
-      .then((dataUrl) => {
-        console.log(`[LocalThumb] loaded (${dataUrl.length} chars): ${path}`);
-        setSrc(dataUrl);
-      })
-      .catch((e) => {
-        console.error(`[LocalThumb] failed: ${path}`, e);
-        setError(true);
-      });
-  }, [path]);
+  const src = convertFileSrc(path);
 
   if (error) return <div className="wallpaper-card-img-placeholder" style={{ background: "#500" }} onClick={onClick} />;
-  if (!src) return <div className="wallpaper-card-img-placeholder" onClick={onClick} />;
-  return <img src={src} alt="" onClick={onClick} />;
+  return <img src={src} alt="" onClick={onClick} onError={() => setError(true)} />;
 }
 
 function LocalWallpapers({

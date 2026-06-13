@@ -2,7 +2,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -242,7 +241,7 @@ fn get_local_wallpapers() -> Result<Vec<String>, String> {
         return Ok(vec![]);
     }
 
-    let mut files: Vec<String> = fs::read_dir(&dir)
+    let mut files: Vec<(String, std::time::SystemTime)> = fs::read_dir(&dir)
         .map_err(|e| {
             log::error!("failed to read dir {:?}: {}", dir, e);
             format!("Read dir error: {}", e)
@@ -250,22 +249,26 @@ fn get_local_wallpapers() -> Result<Vec<String>, String> {
         .filter_map(|entry| {
             let e = entry.ok()?;
             let ext = e.path().extension()?.to_str()?.to_lowercase();
-            if ext == "jpg" || ext == "png" { Some(e.path().to_string_lossy().to_string()) } else { None }
+            if ext == "jpg" || ext == "png" {
+                let path = e.path().to_string_lossy().to_string();
+                let modified = fs::metadata(&path).ok()?.modified().ok()?;
+                Some((path, modified))
+            } else {
+                None
+            }
         })
         .collect();
 
-    files.sort_by(|a, b| {
-        let a_md = fs::metadata(a).and_then(|m| m.modified()).ok();
-        let b_md = fs::metadata(b).and_then(|m| m.modified()).ok();
-        b_md.cmp(&a_md)
-    });
+    files.sort_by(|a, b| b.1.cmp(&a.1));
 
-    log::info!("found {} local wallpapers", files.len());
-    for f in &files {
+    let paths: Vec<String> = files.into_iter().map(|(p, _)| p).collect();
+
+    log::info!("found {} local wallpapers", paths.len());
+    for f in &paths {
         log::debug!("  local wallpaper: {}", f);
     }
 
-    Ok(files)
+    Ok(paths)
 }
 
 #[tauri::command]
@@ -288,35 +291,6 @@ fn get_downloaded_titles() -> Result<Vec<String>, String> {
     }
     log::info!("get_downloaded_titles: {} files", titles.len());
     Ok(titles)
-}
-
-#[tauri::command]
-fn read_image_base64(path: String) -> Result<String, String> {
-    log::debug!("reading image as base64: {}", path);
-
-    let bytes = fs::read(&path).map_err(|e| {
-        log::error!("failed to read image {:?}: {}", &path, e);
-        format!("Read error: {}", e)
-    })?;
-
-    let ext = std::path::Path::new(&path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("jpg")
-        .to_lowercase();
-
-    let mime = match ext.as_str() {
-        "png" => "image/png",
-        "gif" => "image/gif",
-        "webp" => "image/webp",
-        _ => "image/jpeg",
-    };
-
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    let data_url = format!("data:{};base64,{}", mime, b64);
-
-    log::debug!("base64 image size: {} bytes encoded -> {} chars", bytes.len(), b64.len());
-    Ok(data_url)
 }
 
 fn sanitize_filename(name: &str) -> String {
@@ -351,7 +325,6 @@ pub fn run() {
             save_settings,
             get_local_wallpapers,
             get_downloaded_titles,
-            read_image_base64,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
