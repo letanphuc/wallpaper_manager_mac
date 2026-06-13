@@ -1,7 +1,11 @@
-# Tauri + React + Typescript
+# wallpaper-mac
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+macOS desktop wallpaper manager. Fetches Bing Daily and Windows Spotlight wallpapers from Peapix, with preview, download, and set-as-wallpaper functionality.
 
-## Recommended IDE Setup
+## Development
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+```sh
+pnpm tauri dev
+```
+
+See `AGENTS.md` for commands, architecture, and gotchas.
