@@ -28,6 +28,7 @@ function Gallery({ onPreview, onSetWallpaper }: Props) {
   const [source, setSource] = useState("bing");
   const [country, setCountry] = useState("us");
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   const fetchWallpapers = useCallback(async () => {
     console.log(`[Gallery] fetching wallpapers: source=${source}, country=${country}, n=20`);
@@ -59,8 +60,13 @@ function Gallery({ onPreview, onSetWallpaper }: Props) {
         if (s.source) setSource(s.source);
         if (s.country) setCountry(s.country);
       })
-      .catch((e) => console.error(`[Gallery] failed to load settings:`, e));
+      .catch((e) => console.error(`[Gallery] failed to load settings:`, e))
+      .finally(() => setInitialized(true));
   }, []);
+
+  useEffect(() => {
+    if (initialized) fetchWallpapers();
+  }, [fetchWallpapers, initialized]);
 
   console.log(`[Gallery] render: ${wallpapers.length} wallpapers, loading=${loading}`);
 
@@ -113,7 +119,7 @@ function Gallery({ onPreview, onSetWallpaper }: Props) {
 
       {wallpapers.length === 0 && !loading && (
         <div className="gallery-empty">
-          <p>Click "Refresh" to fetch wallpapers.</p>
+          <p>No wallpapers found. Try a different source or country.</p>
         </div>
       )}
 
@@ -133,15 +139,6 @@ function Gallery({ onPreview, onSetWallpaper }: Props) {
               <span className="wallpaper-title">{w.title || "Untitled"}</span>
             </div>
             <div className="wallpaper-card-actions">
-              <button
-                className="btn btn-sm"
-                onClick={() => {
-                  console.log(`[Gallery] preview: "${w.title}"`);
-                  onPreview(w);
-                }}
-              >
-                Preview
-              </button>
               <button
                 className="btn btn-sm btn-primary"
                 onClick={() => {

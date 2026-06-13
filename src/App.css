@@ -390,3 +390,70 @@ input[type="checkbox"] {
   accent-color: var(--primary);
   cursor: pointer;
 }
+
+/* Toast notifications */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  z-index: 2000;
+  animation: toast-in 0.3s ease-out;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  min-width: 200px;
+  -webkit-app-region: no-drag;
+}
+
+.toast-success {
+  border-color: #4caf50;
+}
+
+.toast-success .toast-icon {
+  color: #4caf50;
+}
+
+.toast-error {
+  border-color: #e94560;
+}
+
+.toast-error .toast-icon {
+  color: #e94560;
+}
+
+.toast-loading {
+  border-color: #2196f3;
+}
+
+.toast-loading .toast-icon {
+  color: #2196f3;
+}
+
+.toast-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

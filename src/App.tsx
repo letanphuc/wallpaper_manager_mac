@@ -12,27 +12,24 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>("gallery");
   const [previewWallpaper, setPreviewWallpaper] = useState<Wallpaper | null>(null);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<string | null>(null);
+  type ToastInfo = { message: string; type: "loading" | "success" | "error" } | null;
+  const [toast, setToast] = useState<ToastInfo>(null);
 
   console.log(`[App] render: activeTab=${activeTab}, hasPreview=${!!previewWallpaper || !!previewPath}`);
 
   const handleSetWallpaper = async (url: string, title: string) => {
     console.log(`[App] handleSetWallpaper: title="${title}", url=${url.slice(0, 60)}...`);
-    setDownloadProgress("Downloading...");
+    setToast({ message: "Downloading...", type: "loading" });
     try {
       const path = await invoke<string>("download_wallpaper", { url, title });
       console.log(`[App] downloaded to: ${path}`);
-      setDownloadProgress("Setting wallpaper...");
+      setToast({ message: "Setting wallpaper...", type: "loading" });
       await invoke("set_wallpaper", { path });
       console.log(`[App] wallpaper set successfully`);
-      setDownloadProgress("Done!");
-      setTimeout(() => {
-        console.log(`[App] clearing download progress`);
-        setDownloadProgress(null);
-      }, 2000);
+      setToast({ message: "Wallpaper set!", type: "success" });
     } catch (e) {
       console.error(`[App] download/set failed:`, e);
-      setDownloadProgress(`Error: ${e}`);
+      setToast({ message: `Error: ${e}`, type: "error" });
     }
   };
 
@@ -44,15 +41,14 @@ function App() {
 
   const handleSetLocalWallpaper = async (path: string) => {
     console.log(`[App] set local wallpaper: ${path}`);
-    setDownloadProgress("Setting wallpaper...");
+    setToast({ message: "Setting wallpaper...", type: "loading" });
     try {
       await invoke("set_wallpaper", { path });
       console.log(`[App] local wallpaper set successfully`);
-      setDownloadProgress("Done!");
-      setTimeout(() => setDownloadProgress(null), 2000);
+      setToast({ message: "Wallpaper set!", type: "success" });
     } catch (e) {
       console.error(`[App] set local wallpaper failed:`, e);
-      setDownloadProgress(`Error: ${e}`);
+      setToast({ message: `Error: ${e}`, type: "error" });
     }
   };
 
@@ -89,9 +85,6 @@ function App() {
             Settings
           </button>
         </nav>
-        {downloadProgress && (
-          <span className="download-progress">{downloadProgress}</span>
-        )}
       </header>
 
       <main className="main">
@@ -139,11 +132,34 @@ function App() {
           }
         />
       )}
+
+      {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
     </div>
   );
 }
 
-function LocalWallpaperThumb({ path }: { path: string }) {
+function Toast({ toast, onDismiss }: {
+  toast: { message: string; type: "loading" | "success" | "error" };
+  onDismiss: () => void;
+}) {
+  useEffect(() => {
+    if (toast.type !== "error") {
+      const timer = setTimeout(onDismiss, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast, onDismiss]);
+
+  return (
+    <div className={`toast toast-${toast.type}`} onClick={onDismiss}>
+      <span className="toast-icon">
+        {toast.type === "success" ? "✓" : toast.type === "error" ? "✕" : "⏳"}
+      </span>
+      <span className="toast-message">{toast.message}</span>
+    </div>
+  );
+}
+
+function LocalWallpaperThumb({ path, onClick }: { path: string; onClick: () => void }) {
   const [src, setSrc] = useState<string>("");
   const [error, setError] = useState(false);
 
@@ -161,9 +177,9 @@ function LocalWallpaperThumb({ path }: { path: string }) {
       });
   }, [path]);
 
-  if (error) return <div className="wallpaper-card-img-placeholder" style={{ background: "#500" }} />;
-  if (!src) return <div className="wallpaper-card-img-placeholder" />;
-  return <img src={src} alt="" onClick={() => console.log(`[LocalThumb] clicked: ${path}`)} />;
+  if (error) return <div className="wallpaper-card-img-placeholder" style={{ background: "#500" }} onClick={onClick} />;
+  if (!src) return <div className="wallpaper-card-img-placeholder" onClick={onClick} />;
+  return <img src={src} alt="" onClick={onClick} />;
 }
 
 function LocalWallpapers({
@@ -213,14 +229,8 @@ function LocalWallpapers({
       <div className="wallpaper-grid">
         {wallpapers.map((path, i) => (
           <div key={i} className="wallpaper-card">
-            <LocalWallpaperThumb path={path} />
+            <LocalWallpaperThumb path={path} onClick={() => onPreview(path)} />
             <div className="wallpaper-card-actions">
-              <button className="btn btn-sm" onClick={() => {
-                console.log(`[LocalWallpapers] preview: ${path}`);
-                onPreview(path);
-              }}>
-                Preview
-              </button>
               <button
                 className="btn btn-sm btn-primary"
                 onClick={() => {
