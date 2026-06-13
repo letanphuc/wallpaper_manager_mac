@@ -39,6 +39,39 @@ function App() {
     setPreviewWallpaper(null);
   };
 
+  const handleDownloadAll = async (wallpapers: Wallpaper[]) => {
+    console.log(`[App] handleDownloadAll: ${wallpapers.length} wallpapers`);
+    setToast({ message: `Downloading 0/${wallpapers.length}...`, type: "loading" });
+    const results: { path: string; title: string }[] = [];
+    for (let i = 0; i < wallpapers.length; i++) {
+      const w = wallpapers[i];
+      const url = w.uhd_url || w.image_url || w.full_url;
+      const title = w.title || "wallpaper";
+      if (!url) continue;
+      setToast({ message: `Downloading ${i + 1}/${wallpapers.length}...`, type: "loading" });
+      try {
+        const path = await invoke<string>("download_wallpaper", { url, title });
+        results.push({ path, title });
+      } catch (e) {
+        console.error(`[App] failed to download "${title}":`, e);
+      }
+    }
+    if (results.length === 0) {
+      setToast({ message: "No wallpapers could be downloaded.", type: "error" });
+      return;
+    }
+    const picked = results[Math.floor(Math.random() * results.length)];
+    console.log(`[App] picked random: "${picked.title}"`);
+    setToast({ message: `Setting "${picked.title}"...`, type: "loading" });
+    try {
+      await invoke("set_wallpaper", { path: picked.path });
+      setToast({ message: `Wallpaper set to "${picked.title}"!`, type: "success" });
+    } catch (e) {
+      console.error(`[App] set wallpaper failed:`, e);
+      setToast({ message: `Error: ${e}`, type: "error" });
+    }
+  };
+
   const handleSetLocalWallpaper = async (path: string) => {
     console.log(`[App] set local wallpaper: ${path}`);
     setToast({ message: "Setting wallpaper...", type: "loading" });
@@ -96,6 +129,7 @@ function App() {
               setPreviewPath(null);
             }}
             onSetWallpaper={handleSetWallpaper}
+            onDownloadAll={handleDownloadAll}
           />
         )}
         {activeTab === "local" && (

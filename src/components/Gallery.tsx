@@ -20,9 +20,10 @@ const COUNTRIES: Record<string, string> = {
 interface Props {
   onPreview: (w: Wallpaper) => void;
   onSetWallpaper: (url: string, title: string) => void;
+  onDownloadAll: (wallpapers: Wallpaper[]) => void;
 }
 
-function Gallery({ onPreview, onSetWallpaper }: Props) {
+function Gallery({ onPreview, onSetWallpaper, onDownloadAll }: Props) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState("bing");
@@ -111,6 +112,16 @@ function Gallery({ onPreview, onSetWallpaper }: Props) {
             disabled={loading}
           >
             {loading ? "Loading..." : "Refresh"}
+          </button>
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              console.log(`[Gallery] download all & set random: ${wallpapers.length} wallpapers`);
+              onDownloadAll(wallpapers);
+            }}
+            disabled={wallpapers.length === 0}
+          >
+            Download All & Set Random
           </button>
         </div>
       </div>
