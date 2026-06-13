@@ -5,7 +5,7 @@ import type { Wallpaper, AppSettings } from "../types";
 function sanitizeTitle(title: string): string {
   return title
     .split("")
-    .map((c) => (/[a-zA-Z0-9\-_ ]/.test(c) ? c : "_"))
+    .map((c) => (/[\p{L}\p{N}\-_ ]/u.test(c) ? c : "_"))
     .join("")
     .trim();
 }
