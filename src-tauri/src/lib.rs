@@ -124,6 +124,11 @@ async fn download_wallpaper(url: String, title: String) -> Result<String, String
     let filename = sanitize_filename(&title) + ".jpg";
     let path = dir.join(&filename);
 
+    if path.exists() {
+        log::info!("wallpaper already exists, skipping download: {:?}", path);
+        return Ok(path.to_string_lossy().to_string());
+    }
+
     log::debug!("download target path: {:?}", path);
 
     let client = reqwest::Client::new();

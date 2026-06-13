@@ -30,6 +30,8 @@ Port 1420 must be free. Kill stale processes with `lsof -ti:1420 | xargs kill`.
 
 **Download flow** prefers `uhd_url` → `image_url` → `full_url` (Gallery.tsx:148, App.tsx:130).
 
+**Skip-existing download** — `download_wallpaper` (lib.rs:127) checks `path.exists()` before fetching; returns existing path immediately if the file is already on disk. Both "Download & Set" (per-card) and "Download All & Set Random" skip re-downloading already-saved wallpapers.
+
 **Wallpapers stored at** `~/Pictures/Wallpapers/`.
 
 **macOS wallpaper set** via `osascript` (System Events). Only works on macOS.
